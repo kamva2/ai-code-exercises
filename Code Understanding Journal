@@ -1,1 +1,11 @@
-
+The main components involved are; 
+                                1.cli.py - which is the user interface of the program, which translates commands to taskmanager calls
+                                2.app,py - this is the manager components that orchestrates operations between cli.py and storage.py
+The execution flow when creating/updating a task: 
+                                                cli.py -> app.py -> models.py -> storage.py
+How data is stored and retrieved: 
+                                * The program has a file database that save/load tasks to a JSON
+                                * The app.py component manages the tasks if it's going to be stored or retrieved
+                                * data is stored in memory dictionary; with the task id and the task
+                                * The the task dictionary is written in the JSON file, the task id is returned to cli.py for easy retrieval
+Interesting designs: the storage class teaches JSON how to convert objects(task,timestamp), enum values to primitive types 
