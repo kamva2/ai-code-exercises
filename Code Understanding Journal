@@ -1,3 +1,4 @@
+Exercise 1:
 The main components involved are; 
                                 1.cli.py - which is the user interface of the program, which translates commands to taskmanager calls
                                 2.app,py - this is the manager components that orchestrates operations between cli.py and storage.py
@@ -9,3 +10,17 @@ How data is stored and retrieved:
                                 * data is stored in memory dictionary; with the task id and the task
                                 * The the task dictionary is written in the JSON file, the task id is returned to cli.py for easy retrieval
 Interesting designs: the storage class teaches JSON how to convert objects(task,timestamp), enum values to primitive types 
+
+Execise 2:
+My initial thought of the priority of a task;
+                                            A task has a scale of priority; 1-low to 4-urgent
+                                            This is displayed with '!' to symbolise the task's priority
+What I have discovered;
+                      The reason of using enum values instead of primitive data types is because of fixed value and also easy access
+                      A deep undertsanding of the connection of the components(files)
+The key insights the guided questions helped you uncover: 
+                                                        How the tasks are stored in a JSON file, that when storing a task that does not have priority the default is 2.
+                                                        Using enum values is a safety procedure
+I did not have any misconceptions other an learning more, that the program keeps track of how many priority types are there, e.g. "5 low priority".
+
+
