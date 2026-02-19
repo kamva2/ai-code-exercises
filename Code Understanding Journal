@@ -40,3 +40,24 @@ Persisting the changes:
                       * By safe protection coding, to update a status you can only use these four choices only ["todo", "in_progress", "review", "done"]
                       * By using constants enum values for safety
                       * And if the user command is not clear the program will crash
+
+
+Task priority sorting and filtering algorithm (Python)
+
+AI’s explanation change your understanding of the algorithm:
+                                                            * AI gave me more insight about the algorithm, gave me explanation about thing I did not take into consideration
+
+I do not have any aspects were still difficult to understand after the AI explanation.
+
+Explaining to another Junior developer:
+                                      Imagine you're managing a todo list and need to know which task to work on next. Instead of just looking at priority,
+                                      this algorithm scores each task by combining multiple factors like how urgent the deadline is, whether it's already done,
+                                      and if it has a "blocker" tag. Think of it like a weighted voting system where different factors contribute different amounts
+                                      to a final score. The code multiplies priority by 10 to give it weight, adds bonuses for tasks due soon or recently updated, 
+                                      and subtracts points for completed work so you don't waste time re-prioritizing done tasks. Then it sorts everything by that 
+                                      final score, highest first.
+Testing against AI:
+                    Yes, I did test my understanding by answering the AI suggested questions and also explaining some thing to AI that it did not cover
+Improving the algorithm:
+                        The current code assumes every task has an updated_at timestamp, but what if it's None? This would crash with a typeError.
+                        Set {days_since_update = float('inf')} if the timestamp doesn't exist, which treats unknown tasks and prevents crashing.
