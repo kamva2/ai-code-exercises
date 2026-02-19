@@ -24,3 +24,19 @@ The key insights the guided questions helped you uncover:
 I did not have any misconceptions other an learning more, that the program keeps track of how many priority types are there, e.g. "5 low priority".
 
 Exercise 3:
+
+The flow diagram:
+
+The changes that occur during task completion: 
+                                              * This change will update in three places of placement; status variable, complete_at varialble and the update_at variable.
+                                              * This will change the status from in progress to done, in the task manager to the storage file
+                                              * The time of complition will also be capture, by the complete_at variable and the update_at variable will take it storage to update everything
+Potential points of failure:
+                            * When the user uses an invalid update status string, the one that is not in these choices: {"todo", "in_progress", "review", "done"}
+                            * When the user enters a wrong/invalid task id
+                            * all in all when updating all the string passed should be valid else that will lead to point of failure
+
+Persisting the changes: 
+                      * By safe protection coding, to update a status you can only use these four choices only ["todo", "in_progress", "review", "done"]
+                      * By using constants enum values for safety
+                      * And if the user command is not clear the program will crash
