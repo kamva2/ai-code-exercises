@@ -311,5 +311,6 @@ def get_top_priority_tasks(tasks, limit=5):
 
 
 The insights or improvements you identified using Prompt 2:
-                                                          *
+                                                          *I get to understand what exactly a function or a method is doing because prompt two give examples of the comments with arguements details
+
 
