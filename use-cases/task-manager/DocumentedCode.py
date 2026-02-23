@@ -184,5 +184,120 @@ def get_top_priority_tasks(tasks, limit=5):
         - For production applications tracking many tasks, consider optimizing
           with a heap structure for better performance
     """
+    
+    # =========================================================================
+    # FUNCTION PURPOSE AND USE CASES
+    # =========================================================================
+    # This is a CONVENIENCE WRAPPER that combines sorting + slicing operations
+    # Common use cases:
+    #   1. Dashboard: Show top 5 tasks for user's focus
+    #   2. Notifications: Alert on top 3 most urgent tasks
+    #   3. CLI: Display "next 10 tasks" command
+    #   4. API: Return GET /tasks?limit=5 with best priorities first
+    #
+    # Why a separate function?
+    #   - Common pattern: every client has different limits
+    #   - Single responsibility: top_priority_tasks() handles limiting
+    #   - Improved readability: More intent-clear than sort + slice
+    #   - Potential for optimization: Could use heapq.nlargest() in future
+    
+    # =========================================================================
+    # ALGORITHM: Delegate to Sort Function, Then Slice
+    # =========================================================================
+    # Step 1: Get all tasks sorted by importance (highest first)
     sorted_tasks = sort_tasks_by_importance(tasks)
+    
+    # Step 2: Return only the first 'limit' tasks
+    # Python's slice notation [0:limit] is safe:
+    #   - If limit >= len(tasks): Returns all tasks
+    #   - If limit == 0: Returns empty list
+    #   - If limit < 0: Returns empty list (negative indices count from end)
+    #   - If limit > len(tasks): Returns all available tasks
     return sorted_tasks[:limit]
+    
+    # =========================================================================
+    # POTENTIAL IMPROVEMENTS
+    # =========================================================================
+    #
+    # 1. INPUT VALIDATION (Current Approach: Trust Caller)
+    #    CURRENT CODE: No validation of 'limit' parameter
+    #    IMPROVEMENT: Add guard clause
+    #    >>> if limit < 1:
+    #    >>>     raise ValueError(f"limit must be >= 1, got {limit}")
+    #    TRADE-OFF: Adds 2 lines of code, prevents silent failures
+    #
+    # 2. EFFICIENCY FOR LARGE LISTS (Current: O(n log n) full sort)
+    #    PROBLEM: If tasks list has 10,000 items but limit=5, we sort all 10k
+    #    IMPROVEMENT: Use heapq.nlargest() instead
+    #    >>> import heapq
+    #    >>> top_scored = heapq.nlargest(
+    #    >>>     limit,
+    #    >>>     tasks,
+    #    >>>     key=calculate_task_score
+    #    >>> )
+    #    BENEFIT: O(n log k) where k = limit (only finds top-k, doesn't sort all)
+    #    TRADE-OFF: Slightly more complex code, maintains score calculation
+    #
+    # 3. CACHING (Current: Recalculates every call)
+    #    PROBLEM: If called multiple times, recalculates all scores each time
+    #    IMPROVEMENT: Cache results, invalidate on task changes
+    #    >>> _score_cache = {}
+    #    >>> def get_top_priority_tasks(tasks, limit=5):
+    #    >>>     task_ids = tuple(id(t) for t in tasks)
+    #    >>>     if task_ids not in _score_cache:
+    #    >>>         _score_cache[task_ids] = sort_tasks_by_importance(tasks)
+    #    >>>     return _score_cache[task_ids][:limit]
+    #    BENEFIT: Huge speedup for repeated calls with same tasks
+    #    TRADE-OFF: Memory overhead, cache invalidation complexity
+    #
+    # 4. STABLE ORDERING (Current: Non-deterministic for equal scores)
+    #    PROBLEM: Tasks with same score have undefined order
+    #    IMPROVEMENT: Add secondary sort key (e.g., task creation date)
+    #    >>> sorted_tasks = sort(tasks, key=lambda t: (-calculate_task_score(t), t.created_at))
+    #    BENEFIT: Deterministic results, useful for tests and consistency
+    #    TRADE-OFF: Slightly slower, requires created_at field
+    #
+    # 5. PAGINATION (Current: Single page of results)
+    #    PROBLEM: If limit=5 but user wants to see 6-10, must call again
+    #    IMPROVEMENT: Add offset parameter
+    #    >>> def get_top_priority_tasks(tasks, limit=5, offset=0):
+    #    >>>     sorted_tasks = sort_tasks_by_importance(tasks)
+    #    >>>     return sorted_tasks[offset:offset+limit]
+    #    BENEFIT: Enable pagination in UI without re-sorting
+    #    TRADE-OFF: API becomes more complex
+    
+    # =========================================================================
+    # ASSUMPTIONS AND EDGE CASES
+    # =========================================================================
+    #
+    # ASSUMPTION 1: limit > 0 is a precondition
+    #   - Code assumes caller provides valid limit (>= 1)
+    #   - If limit <= 0 is passed, returns empty list (silent failure)
+    #   - FIX: Validate input if defensive programming is desired
+    #
+    # ASSUMPTION 2: tasks is iterable and non-None
+    #   - Code assumes tasks list exists and is iterable
+    #   - If tasks is None, TypeError will occur in sort_tasks_by_importance
+    #   - FIX: Add guard: `if not tasks: return []`
+    #
+    # EDGE CASE 1: Empty task list
+    #   INPUT: tasks = [], limit = 5
+    #   BEHAVIOR: Returns [] (empty list)
+    #   CORRECT: Yes, no tasks to return
+    #
+    # EDGE CASE 2: Limit exceeds task count
+    #   INPUT: tasks = [task1, task2], limit = 10
+    #   BEHAVIOR: Returns [task1, task2] sorted by importance
+    #   CORRECT: Yes, returns all available tasks
+    #
+    # EDGE CASE 3: Limit equals zero
+    #   INPUT: tasks = [task1, task2, task3], limit = 0
+    #   BEHAVIOR: Returns [] (empty list)
+    #   POTENTIAL ISSUE: May be unintended; consider validating limit >= 1
+    #
+    # EDGE CASE 4: Negative limit
+    #   INPUT: tasks = [task1, task2, task3], limit = -1
+    #   BEHAVIOR: Returns [] or possibly all if interpreted as "all except last"
+    #   ISSUE: Python negatives in slicing count from end (e.g., [:-1] = all but last)
+    #   HERE: sorted_tasks[:-1] would return all except last task
+    #   FIX: Validate limit >= 1 to prevent confusion
