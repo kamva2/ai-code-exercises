@@ -1,0 +1,254 @@
+# Developer Guide: `POST /api/users/register`
+
+## Audience and Purpose
+This guide is for junior developers integrating with the user registration endpoint. It explains how to call the API correctly, interpret responses, and handle common failures in a predictable way.
+
+## Endpoint Overview
+- **HTTP Method:** `POST`
+- **Path:** `/api/users/register`
+- **Content Type:** `application/json`
+- **Purpose:** Create a new user account and return public user details.
+
+---
+
+## 1) Authentication Requirements
+This endpoint **does not require authentication**.
+
+### Important context
+- Registration is a public operation, so no bearer token or API key is needed for this specific route.
+- After registration, the system issues a confirmation token for email verification (server-side behavior).
+- Other protected endpoints in your API may still require authentication.
+
+---
+
+## 2) Properly Formatting Requests
+
+### Required headers
+- `Content-Type: application/json`
+
+### Request body schema
+```json
+{
+  "username": "string (required)",
+  "email": "string (required, valid email)",
+  "password": "string (required, min length: 8)"
+}
+```
+
+### Field rules
+- `username`: must be present and should be unique.
+- `email`: must be present, valid format, and unique (stored lowercased).
+- `password`: must be present and at least 8 characters.
+
+### cURL example (valid request)
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","email":"alice@example.com","password":"s3cureP@ssw0rd"}' \
+  https://api.example.com/api/users/register
+```
+
+---
+
+## 3) Handling and Interpreting Responses
+
+### Success response: `201 Created`
+```json
+{
+  "message": "User registered successfully",
+  "user": {
+    "id": 123,
+    "username": "alice",
+    "email": "alice@example.com",
+    "created_at": "2026-02-24T12:34:56.789012",
+    "role": "user"
+  }
+}
+```
+
+### What to do on success
+- Confirm status code is `201`.
+- Read `user.id` and `user.email` for client state.
+- Do not expect password fields in any response.
+- Prompt user to check email for verification if your frontend supports that workflow.
+
+---
+
+## 4) Common Errors and How to Handle Them
+
+### `400 Bad Request`
+Input is missing or invalid.
+
+Examples:
+```json
+{"error": "Missing required field", "message": "password is required"}
+```
+```json
+{"error": "Invalid email", "message": "Please provide a valid email address"}
+```
+```json
+{"error": "Weak password", "message": "Password must be at least 8 characters long"}
+```
+
+Recommended client action:
+- Show validation message to user.
+- Keep form data so user can correct only invalid fields.
+
+### `409 Conflict`
+Username or email already exists.
+
+Examples:
+```json
+{"error": "Username taken", "message": "Username is already in use"}
+```
+```json
+{"error": "Email exists", "message": "An account with this email already exists"}
+```
+
+Recommended client action:
+- Ask user to choose a different username/email.
+- Avoid exposing too much account existence info in public UIs.
+
+### `500 Internal Server Error`
+Unexpected server/database failure.
+
+Example:
+```json
+{"error": "Server error", "message": "Failed to register user"}
+```
+
+Recommended client action:
+- Display a generic retry message.
+- Log request correlation info on client (if available).
+- Retry only if your product policy allows (avoid aggressive retries).
+
+---
+
+## 5) Example Code (Python)
+
+### Install dependency
+```bash
+pip install requests
+```
+
+### Minimal integration example
+```python
+import requests
+
+BASE_URL = "https://api.example.com"
+REGISTER_URL = f"{BASE_URL}/api/users/register"
+
+payload = {
+    "username": "alice",
+    "email": "alice@example.com",
+    "password": "s3cureP@ssw0rd"
+}
+
+response = requests.post(
+    REGISTER_URL,
+    json=payload,
+    headers={"Content-Type": "application/json"},
+    timeout=10
+)
+
+print("Status:", response.status_code)
+print("Body:", response.json())
+```
+
+### Production-oriented error handling example
+```python
+import requests
+from typing import Dict, Any
+
+BASE_URL = "https://api.example.com"
+REGISTER_URL = f"{BASE_URL}/api/users/register"
+
+
+def register_user(username: str, email: str, password: str) -> Dict[str, Any]:
+    payload = {
+        "username": username,
+        "email": email,
+        "password": password,
+    }
+
+    try:
+        resp = requests.post(
+            REGISTER_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+
+        # Defensive parse in case non-JSON response is returned on errors
+        try:
+            body = resp.json()
+        except ValueError:
+            body = {"error": "Invalid response", "message": "Non-JSON response from server"}
+
+        if resp.status_code == 201:
+            return {
+                "ok": True,
+                "user": body.get("user"),
+                "message": body.get("message", "User registered successfully"),
+            }
+
+        if resp.status_code in (400, 409):
+            return {
+                "ok": False,
+                "retryable": False,
+                "error": body.get("error", "Request error"),
+                "message": body.get("message", "Please correct your input and try again."),
+                "status": resp.status_code,
+            }
+
+        if resp.status_code >= 500:
+            return {
+                "ok": False,
+                "retryable": True,
+                "error": body.get("error", "Server error"),
+                "message": body.get("message", "Please try again later."),
+                "status": resp.status_code,
+            }
+
+        return {
+            "ok": False,
+            "retryable": False,
+            "error": "Unexpected status",
+            "message": f"Unhandled status code: {resp.status_code}",
+            "status": resp.status_code,
+        }
+
+    except requests.Timeout:
+        return {
+            "ok": False,
+            "retryable": True,
+            "error": "Timeout",
+            "message": "Request timed out. Please retry.",
+        }
+    except requests.RequestException as exc:
+        return {
+            "ok": False,
+            "retryable": True,
+            "error": "Network error",
+            "message": str(exc),
+        }
+
+
+if __name__ == "__main__":
+    result = register_user("alice", "alice@example.com", "s3cureP@ssw0rd")
+    print(result)
+```
+
+---
+
+## Operational Considerations
+- Apply rate limits to this public endpoint (recommended: **5–10 requests/min per IP**).
+- Because the endpoint currently returns distinct conflict messages, avoid exposing raw backend messages directly in UI if you want to reduce account enumeration risk.
+- Keep audit logs for registration failures and spikes in registration attempts.
+- Since email sending failures do not block user creation, ensure asynchronous retry/monitoring is implemented server-side.
+
+## Quick Troubleshooting Checklist
+- `400` returned? Validate required fields, email format, and password length.
+- `409` returned? Prompt for different username/email.
+- `500` returned? Retry later and alert backend maintainers with logs.
+- Unexpected response shape? Capture raw response body for diagnostics.
