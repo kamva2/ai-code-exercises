@@ -1,0 +1,127 @@
+"""
+POST /api/users/register
+------------------------
+
+Purpose
+-------
+Register a new user account. Accepts a JSON payload with `username`,
+`email`, and `password`. Creates a user record, hashes the password,
+generates an email confirmation token and returns the public user object
+without password data.
+
+Endpoint
+--------
+- URL: `/api/users/register`
+- Method: `POST`
+
+Request Parameters
+------------------
+- Path parameters: none
+- Query parameters: none
+- Body (application/json):
+  - `username` (string, required): desired unique username.
+  - `email` (string, required): user email; validated with a basic regex and
+    normalized to lowercase before storage.
+  - `password` (string, required): plaintext password (minimum 8 characters).
+
+Response Format
+---------------
+- 201 Created
+  - Body: `{ "message": "User registered successfully", "user": { ... } }`
+  - `user` fields: `id`, `username`, `email`, `created_at` (ISO 8601), `role`.
+
+- 400 Bad Request
+  - Missing field: `{ "error": "Missing required field", "message": "<field> is required" }`
+  - Invalid email: `{ "error": "Invalid email", "message": "Please provide a valid email address" }`
+  - Weak password: `{ "error": "Weak password", "message": "Password must be at least 8 characters long" }`
+
+- 409 Conflict
+  - Username taken: `{ "error": "Username taken", "message": "Username is already in use" }`
+  - Email exists: `{ "error": "Email exists", "message": "An account with this email already exists" }`
+
+- 500 Internal Server Error
+  - Generic failure: `{ "error": "Server error", "message": "Failed to register user" }`
+
+Authentication
+--------------
+No authentication required. This endpoint registers new accounts. The
+application issues a confirmation token and typically requires the user to
+confirm email to enable full account access.
+
+Potential Error Responses (summary)
+----------------------------------
+- 400 Missing/invalid input (username/email/password)
+- 400 Invalid email format
+- 400 Weak password (length < 8)
+- 409 Username or email conflict
+- 500 Server/DB error
+
+Example Requests
+----------------
+1) Successful registration
+
+Request
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","email":"alice@example.com","password":"s3cureP@ssw0rd"}' \
+  https://api.example.com/api/users/register
+```
+
+Response (201)
+```json
+{
+  "message": "User registered successfully",
+  "user": {
+    "id": 123,
+    "username": "alice",
+    "email": "alice@example.com",
+    "created_at": "2026-02-24T12:34:56.789012",
+    "role": "user"
+  }
+}
+```
+
+2) Missing field (example)
+
+Request
+```bash
+curl -s -X POST -H "Content-Type: application/json" -d '{"username":"bob","email":"bob@example.com"}' https://api.example.com/api/users/register
+```
+
+Response (400)
+```json
+{"error": "Missing required field", "message": "password is required"}
+```
+
+Rate limiting & special considerations
+-------------------------------------
+- Apply rate limiting per IP to registration endpoints (e.g. 5-10 requests/min)
+  to reduce brute-force and enumeration attacks.
+- Consider making email delivery asynchronous (background jobs/queue) and
+  implement retries; the current implementation logs email send failures and
+  continues.
+- Normalize email to lowercase for uniqueness checks and storage.
+- Current behavior leaks whether a username/email exists (distinct 409
+  responses). For privacy and to prevent account enumeration, consider
+  returning a generic response for duplicate/exists conditions.
+- Always store only hashed passwords and enforce password policy; consider
+  additional checks (strength, disallow common passwords, password complexity
+  rules) and optional rate-limited password creation flows.
+- Ensure DB transactions are handled correctly and roll back on failure.
+
+Implementation notes
+--------------------
+The referenced implementation performs these steps:
+1. Parse JSON body and validate required fields.
+2. Check for existing username/email via DB queries.
+3. Validate email with a simple regex and check password length.
+4. Hash the password, create and commit the user record.
+5. Generate a confirmation token and attempt to send a confirmation email
+   (errors are logged but do not roll back the registration).
+6. Return the created user's public fields with 201, or an error code on
+   failure.
+
+Reference: implementation is available in the repository source for the
+`/api/users/register` route (see the Flask route definition).
+"""
